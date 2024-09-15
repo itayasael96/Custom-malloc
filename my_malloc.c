@@ -6,7 +6,7 @@
 
 //allocate blocks of size { 2^(MIN_ORDER), 2^(MIN_ORDER + 1) ... 2^(MAX_ORDER) }  
 #define MAX_ORDER 10
-#define MIN_ORDER 5
+#define MIN_ORDER 5 // ( 2^MIN_ORDER ) >= ( 2 * sizeof(void*)) )
 #define POWER_2 20
 #define TOTAL_SIZE (1 << POWER_2) // total bytes for user: (1 << POWER_2)
 #define ALIGN 8 // 64bit processor
