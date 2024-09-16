@@ -45,7 +45,7 @@ static Block* free_blocks_arrayOf_lists[MAX_ORDER + 1];
 
 char* init_addres_blocks;
 static char* original_malloc_adress;
-
+static bool is_init = false;
 
 
 void init_malloc_frag(){
@@ -65,7 +65,7 @@ void init_malloc_frag(){
 
     
 
-    int num_blocks_order_10 = TOTAL_SIZE / (1 << MAX_ORDER);
+    int num_blocks_order_10 = TOTAL_SIZE >> MAX_ORDER;
     char* start_blocks_addres_blocks = init_addres_blocks;
     for(int i = 0; i < (TOTAL_SIZE >> MAX_ORDER); i++){  // ( TOTAL_SIZE >> MAX_ORDER ) = num of blocks with order of MAX_ORDER that covvered TOTAL_SIZE of memory
         
@@ -79,7 +79,7 @@ void init_malloc_frag(){
         block->next = free_blocks_arrayOf_lists[MAX_ORDER];
         block->prev = NULL;
         
-        if(!free_blocks_arrayOf_lists[MAX_ORDER]){
+        if(free_blocks_arrayOf_lists[MAX_ORDER] != NULL){
             free_blocks_arrayOf_lists[MAX_ORDER]->prev = block;
         }                 
         free_blocks_arrayOf_lists[MAX_ORDER] = block;
@@ -98,6 +98,10 @@ void init_malloc_frag(){
 
 
 void* malloc_frag(size_t size){
+    if(!is_init){
+        init_malloc_frag();
+        is_init = true;
+    }
         
     //searching for the minimal order that bigger than 'size' 
     int order = MIN_ORDER;
@@ -136,7 +140,7 @@ void* malloc_frag(size_t size){
     int x = 1;
     while((order_of_block_found - x) >= order){ 
        //create new block with order of (order_of_block_found - x)
-       Block* new_block =  (Block*)( res_block + (1 << order_of_block_found - x) );
+       Block* new_block =  (Block*)( res_block + (1 << (order_of_block_found - x)) );
 
        //update the bit-map that there is a new free block with order of (order_of_block_found - x)
        BitField order_block;
