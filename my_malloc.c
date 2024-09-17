@@ -9,15 +9,14 @@
 #define MIN_ORDER 5 // ( 2^MIN_ORDER ) >= ( 2 * sizeof(void*)) )
 #define POWER_2 20
 #define TOTAL_SIZE (1 << POWER_2) // total bytes for user: (1 << POWER_2)
-#define ALIGN 8 // 64bit processor
+#define ALIGN 64 //  cache line sizes 
 
 
 
 
 typedef struct {
     unsigned int value : 4; // 4 bits :  0 <= value <= 15
-} BitField;
-
+} BitField;                 // max(value) >= (MAX_ORDER - MIN_ORDER + 1)
 
 
 typedef struct Block{
