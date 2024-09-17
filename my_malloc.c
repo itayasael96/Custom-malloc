@@ -2,14 +2,15 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h> 
+#include <pthread.h>
 
 
 //allocate blocks of size { 2^(MIN_ORDER), 2^(MIN_ORDER + 1) ... 2^(MAX_ORDER) }  
 #define MAX_ORDER 10
-#define MIN_ORDER 5 // ( 2^MIN_ORDER ) >= ( 2 * sizeof(void*)) )
+#define MIN_ORDER 5 // ( 2^MIN_ORDER ) >=  ( 2 * sizeof(void*)) ) 
 #define POWER_2 20
 #define TOTAL_SIZE (1 << POWER_2) // total bytes for user: (1 << POWER_2)
-#define ALIGN 64 //  cache line sizes 
+#define ALIGN 64 //  max( cache line size,  2^MIN_ORDER)
 
 
 
@@ -17,6 +18,7 @@
 typedef struct {
     unsigned int value : 4; // 4 bits :  0 <= value <= 15
 } BitField;                 // max(value) >= (MAX_ORDER - MIN_ORDER + 1)
+
 
 
 typedef struct Block{
@@ -46,8 +48,11 @@ char* init_addres_blocks;
 static char* original_malloc_adress;
 static bool is_init = false;
 
+pthread_mutex_t memory_mutex = PTHREAD_MUTEX_INITIALIZER; // PTHREAD_MUTEX_INITIALIZER : it is properly initialized before it is used
+
 
 void init_malloc_frag(){
+    
     for(int i = 0; i < (MAX_ORDER + 1); i++){
         free_blocks_arrayOf_lists[i] = NULL;
     }
@@ -56,6 +61,7 @@ void init_malloc_frag(){
     original_malloc_adress = (char*)malloc( (sizeof(char) * TOTAL_SIZE) + (sizeof(BitField) * TOTAL_SIZE) + extra); //ad
     init_addres_blocks = (char*)(((uintptr_t)original_malloc_adress + extra) & (~(ALIGN - 1)));
     if(!init_addres_blocks){
+        pthread_mutex_lock(&memory_mutex);
         fprintf(stderr, "Failed to allocate memory pool\n");
         exit(1); 
     }
@@ -97,6 +103,8 @@ void init_malloc_frag(){
 
 
 void* malloc_frag(size_t size){
+    
+    pthread_mutex_lock(&memory_mutex);
     if(!is_init){
         init_malloc_frag();
         is_init = true;
@@ -129,6 +137,7 @@ void* malloc_frag(size_t size){
         }
 
     if(!mem_found){
+         pthread_mutex_unlock(&memory_mutex);
         return NULL; //non block has been found
     }
         
@@ -153,7 +162,7 @@ void* malloc_frag(size_t size){
        free_blocks_arrayOf_lists[order_of_block_found - x] = new_block;
        x++;        
     }
-
+    pthread_mutex_unlock(&memory_mutex);
     return res_block;
 }
 
@@ -163,6 +172,7 @@ void* malloc_frag(size_t size){
 
 
 void* free_malloc_frag(void* ptr){
+    pthread_mutex_lock(&memory_mutex);
     size_t returned_adress_indxOf_bitMap = (char*)ptr - init_addres_blocks;
     BitField order_block = order_bitMap[returned_adress_indxOf_bitMap];
     int returned_block_order = order_block.value - 2;
@@ -272,5 +282,7 @@ void* free_malloc_frag(void* ptr){
         free_blocks_arrayOf_lists[returned_block_order - 4] = new_block;
 
     }
+    pthread_mutex_unlock(&memory_mutex);
+
 }
 
